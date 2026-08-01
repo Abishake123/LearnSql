@@ -1,0 +1,22 @@
+# MySQL Workbench
+*.mwb.bak
+*.bak
+
+# Local dumps / exports — never commit real data
+*.dump
+dumps/
+exports/
+
+# Credentials
+.env
+*.cnf
+my.cnf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
