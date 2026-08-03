@@ -5,6 +5,10 @@
 Every query we wrote in class, cleaned up, grouped by topic, and commented.
 Read the files in numbered order — each one builds on the one before it.
 
+```bash
+git clone git@github.com:Abishake123/LearnSql.git
+```
+
 We use two databases:
 
 - **`office`** — the classic HR schema (employees, departments, jobs, locations, countries, regions, dependents). This is where almost everything happens.
