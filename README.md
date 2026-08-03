@@ -32,6 +32,7 @@ We use two databases:
 | `06-aggregates` | [`09_aggregates_group_by.sql`](06-aggregates/09_aggregates_group_by.sql) | `COUNT`, `GROUP BY`, `ONLY_FULL_GROUP_BY` |
 | `06-aggregates` | [`10_subqueries.sql`](06-aggregates/10_subqueries.sql) | Subqueries in `WHERE` |
 | `07-ddl` | [`11_alter_table.sql`](07-ddl/11_alter_table.sql) | `ALTER TABLE`, adding columns, fixing foreign keys |
+| `06-aggregates` | [`12_aggregates_with_joins.sql`](06-aggregates/12_aggregates_with_joins.sql) | `LENGTH`/`CHAR_LENGTH`, aggregates over a JOIN, functional dependency |
 | — | [`cheatsheet.md`](cheatsheet.md) | One-page recap of everything |
 
 ---

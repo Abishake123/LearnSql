@@ -115,6 +115,13 @@ ORDER BY headcount DESC;
 - Every `SELECT` column must be in `GROUP BY` **or** inside an aggregate. `ONLY_FULL_GROUP_BY` enforces this — disabling it hides the error, it doesn't fix the query.
 - `COUNT(*)` counts rows; `COUNT(col)` skips NULLs. **Across a LEFT JOIN, use `COUNT(col)`** or empty groups wrongly count as 1.
 - Aggregates can't appear in `WHERE` — that's what `HAVING` and subqueries are for.
+- **Exception to the GROUP BY rule:** if you `GROUP BY` a foreign key (`e.job_id`) that maps to another table's primary key, you *can* `SELECT` that other table's columns (`j.job_title`) without erroring — each group has exactly one possible value, so MySQL allows it even under `ONLY_FULL_GROUP_BY`:
+  ```sql
+  SELECT j.job_title, COUNT(e.employee_id) AS headcount
+  FROM employees e
+  JOIN jobs j ON j.job_id = e.job_id
+  GROUP BY e.job_id;          -- fine: job_title is functionally dependent on e.job_id
+  ```
 
 ## Subqueries
 
@@ -177,6 +184,8 @@ DDL **auto-commits** — `ROLLBACK` cannot undo an `ALTER`.
 | `YEAR(d)`, `MONTH(d)` | Extract date parts |
 | `DATE('1987-06-17')` | Cast a string to a date |
 | `COUNT(DISTINCT col)` | How many different values |
+| `LENGTH(s)` | String length in **bytes** |
+| `CHAR_LENGTH(s)` | String length in **characters** — prefer this once data isn't guaranteed ASCII |
 
 ---
 
