@@ -33,6 +33,15 @@ We use two databases:
 | `06-aggregates` | [`10_subqueries.sql`](06-aggregates/10_subqueries.sql) | Subqueries in `WHERE` |
 | `07-ddl` | [`11_alter_table.sql`](07-ddl/11_alter_table.sql) | `ALTER TABLE`, adding columns, fixing foreign keys |
 | `06-aggregates` | [`12_aggregates_with_joins.sql`](06-aggregates/12_aggregates_with_joins.sql) | `LENGTH`/`CHAR_LENGTH`, aggregates over a JOIN, functional dependency |
+| `06-aggregates` | [`13_having_without_groupby.sql`](06-aggregates/13_having_without_groupby.sql) | `HAVING` with no `GROUP BY`, `HAVING` on a SELECT alias |
+| `08-functions` | [`14_field_and_format.sql`](08-functions/14_field_and_format.sql) | `FIELD()`, `FORMAT()` |
+| `09-case-expressions` | [`15_case_expressions.sql`](09-case-expressions/15_case_expressions.sql) | `CASE WHEN ... THEN ... END`, bucketing values |
+| `10-derived-temp-cte` | [`16_derived_temp_tables_and_ctes.sql`](10-derived-temp-cte/16_derived_temp_tables_and_ctes.sql) | Derived tables, `TEMPORARY TABLE`, `WITH` (CTEs), chained CTEs |
+| `11-transactions` | [`17_savepoints.sql`](11-transactions/17_savepoints.sql) | `SAVEPOINT`, `ROLLBACK TO SAVEPOINT` |
+| `12-admin` | [`18_users_and_views.sql`](12-admin/18_users_and_views.sql) | `CREATE USER`, `GRANT`/`REVOKE`, `CREATE VIEW` |
+| `13-performance` | [`19_indexes_and_binlog.sql`](13-performance/19_indexes_and_binlog.sql) | `CREATE INDEX`, InnoDB vs MyISAM, the binary log |
+| `05-joins` | [`20_cross_join_and_self_join_variant.sql`](05-joins/20_cross_join_and_self_join_variant.sql) | `CROSS JOIN`, reading a self-join's `ON` clause correctly |
+| `14-window-functions` | [`21_window_functions_intro.sql`](14-window-functions/21_window_functions_intro.sql) | `OVER()` — aggregates that don't collapse rows |
 | — | [`cheatsheet.md`](cheatsheet.md) | One-page recap of everything |
 
 ---

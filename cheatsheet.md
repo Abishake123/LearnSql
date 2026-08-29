@@ -76,8 +76,13 @@ LEFT JOIN departments d ON e.department_id = d.department_id;
 | `RIGHT JOIN` | All rows from the joined table |
 | `FULL OUTER JOIN` | Both sides — **not supported in MySQL**, emulate with `UNION` |
 | Self join | A table joined to itself (`manager_id → employee_id`) |
+| `CROSS JOIN` | Every row × every row — no `ON` clause, a deliberate Cartesian product |
 
 **One question decides it:** do you want rows that have no match? No → `INNER`. Yes → `LEFT`.
+
+**Self joins:** trust the `ON` condition, not the alias names, to figure out which side plays which role — `e.employee_id = m.manager_id` means `e` is the manager, even if a column is mislabeled `AS employee`.
+
+**`CROSS JOIN`:** `FROM a, b` with no `WHERE` linking them is the *same* Cartesian product, written by accident. Always use an explicit `JOIN ... ON` or a deliberate `CROSS JOIN`.
 
 **Find orphans:**
 
@@ -123,6 +128,15 @@ ORDER BY headcount DESC;
   GROUP BY e.job_id;          -- fine: job_title is functionally dependent on e.job_id
   ```
 
+**`HAVING` without `GROUP BY`:** legal, but usually the wrong tool.
+
+```sql
+SELECT COUNT(*) AS n FROM employees HAVING n > 10;   -- whole table = one group; 0 or 1 rows back
+SELECT * FROM employees HAVING salary < 5000;        -- works like WHERE, but can't use an index — use WHERE
+```
+
+The one real reason to reach for it: `WHERE` runs *before* the `SELECT` list is evaluated, so it can't see a `SELECT`-list alias. `HAVING` runs *after*, so it can — that's what makes `HAVING salary_tag = 'High'` (where `salary_tag` is a `CASE` alias) legal. For real code, prefer wrapping the `CASE`/alias in a derived table or CTE and filtering with `WHERE` instead — same result, clearer intent.
+
 ## Subqueries
 
 ```sql
@@ -134,6 +148,44 @@ FROM (SELECT ... ) AS t                                                         
 ```
 
 `=` needs exactly one row back. `IN` accepts many. When in doubt, `IN`.
+
+## CASE expressions
+
+```sql
+CASE
+    WHEN salary > 15000 THEN 'High'
+    WHEN salary > 10000 THEN 'Medium'
+    ELSE 'Low'
+END AS salary_tag
+```
+
+First matching `WHEN` wins, top to bottom. No `ELSE` → unmatched rows get `NULL`. Works anywhere an expression is allowed: `SELECT`, `WHERE`, `ORDER BY`, `GROUP BY`.
+
+## Derived tables, temp tables, CTEs
+
+Three ways to name an intermediate result, at three different scopes:
+
+```sql
+-- Derived table — scoped to this one query
+SELECT * FROM (SELECT department_id, AVG(salary) AS avg_salary FROM employees GROUP BY department_id) dt
+WHERE avg_salary > 10000;
+
+-- CTE — same scope as a derived table, cleaner syntax, top-to-bottom
+WITH dept_avg AS (
+    SELECT department_id, AVG(salary) AS avg_salary FROM employees GROUP BY department_id
+)
+SELECT * FROM dept_avg WHERE avg_salary > 10000;
+
+-- Multiple CTEs — each can reference an earlier one
+WITH a AS (SELECT ...), b AS (SELECT ... FROM a WHERE ...)
+SELECT * FROM b;
+
+-- Temporary table — scoped to your WHOLE SESSION, a real table
+CREATE TEMPORARY TABLE high_salary_emp AS SELECT * FROM employees WHERE salary > 10000;
+DROP TEMPORARY TABLE high_salary_emp;
+```
+
+A temp table is the only one of the three you can `INSERT`/`UPDATE`/`DELETE` against — and the only one visible in `SHOW TABLES` (to your session only; other connections can't see it).
 
 ---
 
@@ -154,7 +206,16 @@ SET SQL_SAFE_UPDATES = 0;   -- off: allows non-key WHERE
 SET SQL_SAFE_UPDATES = 1;   -- on: the default guard. Leave it on.
 
 START TRANSACTION;  ...  ROLLBACK;   -- the real undo button (DML only)
+
+START TRANSACTION;
+UPDATE employees SET salary = salary + 2000 WHERE employee_id = 101;
+SAVEPOINT chk;                        -- named checkpoint, mid-transaction
+UPDATE employees SET salary = salary + 1000 WHERE employee_id = 102;
+ROLLBACK TO SAVEPOINT chk;            -- undoes ONLY what happened after chk (the 102 update)
+COMMIT;                               -- transaction is still open — this finalizes what's left (the 101 update)
 ```
+
+`SAVEPOINT` always needs a name — there's no bare form. `ROLLBACK TO SAVEPOINT` doesn't end the transaction; you still need a final `COMMIT` or full `ROLLBACK`.
 
 ## Changing structure
 
@@ -172,6 +233,46 @@ FOREIGN KEY (department_id) REFERENCES departments(department_id);
 
 DDL **auto-commits** — `ROLLBACK` cannot undo an `ALTER`.
 
+## Users, privileges, and views
+
+```sql
+CREATE USER 'junior'@'localhost' IDENTIFIED BY '...';   -- starts with ZERO privileges
+GRANT SELECT ON office.* TO 'junior'@'localhost';        -- add a privilege
+REVOKE UPDATE ON office.* FROM 'junior'@'localhost';     -- remove one (no-op if never granted)
+FLUSH PRIVILEGES;                                        -- reload grant tables (rarely required)
+
+CREATE VIEW employee_details AS
+SELECT e.first_name, j.job_title, r.region_name
+FROM employees e
+LEFT JOIN jobs j ON e.job_id = j.job_id
+LEFT JOIN regions r ON ...;
+-- query it like a table: SELECT * FROM employee_details;
+```
+
+A view stores no data — it re-runs its `SELECT` on every query. A multi-table view is generally read-only; only simple single-table views support `INSERT`/`UPDATE`.
+
+## Indexes & internals
+
+```sql
+CREATE INDEX idx_phone ON employees(phone_number);
+SHOW VARIABLES LIKE 'log_bin';
+SHOW BINARY LOGS;
+SHOW BINLOG EVENTS IN 'binlog.000055';
+```
+
+An index lets a lookup jump straight to the right B-tree page instead of scanning every row — but every write (`INSERT`/`UPDATE`/`DELETE`) now also maintains it, so add one for columns you actually filter/join/sort on, not everything. InnoDB (transactions, FKs, row locks) is the default engine over MyISAM (none of that). The **binlog** records every data-changing statement in order — it powers replication and point-in-time recovery.
+
+## Window functions
+
+```sql
+SELECT department_id, SUM(salary) FROM employees GROUP BY department_id;   -- collapses to one row per group
+
+SELECT employee_id, department_id, SUM(salary) OVER() AS company_total
+FROM employees;                                                             -- keeps every row
+```
+
+`GROUP BY` collapses rows into groups. A window function (`OVER()`) computes the same kind of aggregate but keeps every row, attaching the aggregate as an extra column. `OVER()` with empty parens = the whole result set is the window; `OVER (PARTITION BY department_id)` would scope it per group while still keeping every row.
+
 ---
 
 ## Useful functions
@@ -186,6 +287,8 @@ DDL **auto-commits** — `ROLLBACK` cannot undo an `ALTER`.
 | `COUNT(DISTINCT col)` | How many different values |
 | `LENGTH(s)` | String length in **bytes** |
 | `CHAR_LENGTH(s)` | String length in **characters** — prefer this once data isn't guaranteed ASCII |
+| `FIELD(val, a, b, c)` | 1-based position of `val` in the list; `0` if not found — great for a custom `ORDER BY` |
+| `FORMAT(num, decimals)` | Thousands separators + fixed decimals — returns **text**, format last |
 
 ---
 
@@ -199,6 +302,10 @@ DDL **auto-commits** — `ROLLBACK` cannot undo an `ALTER`.
 | `COUNT(*)` over a LEFT JOIN | Empty groups counted as 1 | `COUNT(joined_table.id)` |
 | `= (subquery returning 2 rows)` | "Subquery returns more than 1 row" | Use `IN` |
 | `"David"` (double quotes) | Works in MySQL only | Use `'David'` |
+| `savepoint;` with no name | Syntax error | `SAVEPOINT <name>;` — always needs one |
+| `ROLLBACK TO SAVEPOINT` alone | Transaction stays open | Still needs a final `COMMIT` (or full `ROLLBACK`) |
+| Trusting a self-join alias name | `AS employee` / `AS manager` swapped vs. the real roles | Read the `ON` condition, not the alias, to see who's who |
+| `ONLY_FULL_GROUP_BY` disabled earlier in a session | Stays off for every later query in that session | Watch for ungrouped, non-aggregated columns creeping back in |
 
 ---
 
