@@ -187,6 +187,24 @@ DROP TEMPORARY TABLE high_salary_emp;
 
 A temp table is the only one of the three you can `INSERT`/`UPDATE`/`DELETE` against — and the only one visible in `SHOW TABLES` (to your session only; other connections can't see it).
 
+## Recursive CTEs
+
+```sql
+WITH RECURSIVE employee_hierarchy AS (
+    SELECT employee_id, first_name, manager_id, 1 AS level     -- anchor: runs ONCE
+    FROM employees WHERE manager_id IS NULL
+
+    UNION ALL                                                   -- ALL, not UNION — no dedup needed
+
+    SELECT e.employee_id, e.first_name, e.manager_id, eh.level + 1   -- recursive: runs once per PASS
+    FROM employees e
+    JOIN employee_hierarchy eh ON e.manager_id = eh.employee_id      -- self-reference = the mechanism
+)
+SELECT * FROM employee_hierarchy ORDER BY level;
+```
+
+`WITH RECURSIVE` is mandatory in MySQL even though the CTE is just named normally elsewhere. Each pass joins against only the *previous* pass's new rows, not the whole result so far — the recursion stops the instant a pass finds zero new rows. `cte_max_recursion_depth` (default 1000) is the safety net if bad data ever forms a cycle. Full visual walkthrough: [`22_recursive_cte_hierarchy.sql`](10-derived-temp-cte/22_recursive_cte_hierarchy.sql).
+
 ---
 
 ## Changing data

@@ -42,6 +42,7 @@ We use two databases:
 | `13-performance` | [`19_indexes_and_binlog.sql`](13-performance/19_indexes_and_binlog.sql) | `CREATE INDEX`, InnoDB vs MyISAM, the binary log |
 | `05-joins` | [`20_cross_join_and_self_join_variant.sql`](05-joins/20_cross_join_and_self_join_variant.sql) | `CROSS JOIN`, reading a self-join's `ON` clause correctly |
 | `14-window-functions` | [`21_window_functions_intro.sql`](14-window-functions/21_window_functions_intro.sql) | `OVER()` — aggregates that don't collapse rows |
+| `10-derived-temp-cte` | [`22_recursive_cte_hierarchy.sql`](10-derived-temp-cte/22_recursive_cte_hierarchy.sql) | `WITH RECURSIVE` — walking a manager → reportee chain |
 | — | [`cheatsheet.md`](cheatsheet.md) | One-page recap of everything |
 
 ---
