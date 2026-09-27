@@ -151,6 +151,73 @@ SHOW VARIABLES LIKE 'cte_max_recursion_depth';
 -- a suspected cycle:
 --   SET SESSION cte_max_recursion_depth = 5000;
 
+-- The same setting, read and changed via @@ (a system variable):
+SELECT @@cte_max_recursion_depth;
+SET SESSION cte_max_recursion_depth = 2000;   -- this connection only
+
+
+-- -------------------------------------------------------------
+-- 7. Recursion without a table — counting 1 to 5
+-- -------------------------------------------------------------
+-- A later session came back to recursive CTEs with the smallest
+-- possible example, before touching employees again. First, a plain
+-- CTE with one row, for comparison:
+WITH numbers AS (
+    SELECT 1 AS number
+)
+SELECT * FROM numbers;
+
+-- Now make it call itself. Anchor = 1; each pass adds 1 to the row
+-- the previous pass produced; WHERE number < 5 is what makes a pass
+-- eventually come back empty.
+WITH RECURSIVE numbers AS (
+    SELECT 1 AS number            -- anchor query
+    UNION ALL
+    SELECT number + 1             -- recursive query
+    FROM numbers
+    WHERE number < 5
+)
+SELECT * FROM numbers;            -- → 1, 2, 3, 4, 5
+
+-- ⚠️ Drop the WHERE and the recursion never finds an empty pass —
+-- it stops only when it hits cte_max_recursion_depth (section 6) and
+-- errors out.
+
+
+-- -------------------------------------------------------------
+-- 8. One level with UNION vs every level with recursion
+-- -------------------------------------------------------------
+-- Employee 108 plus their DIRECT reports — two plain queries glued
+-- with UNION. Fine for exactly one level down:
+SELECT * FROM employees WHERE employee_id = 108
+UNION
+SELECT * FROM employees WHERE manager_id = 108;
+
+-- To get reports-of-reports, and theirs, and so on, anchor the
+-- recursive CTE on ONE employee instead of on "manager_id IS NULL".
+-- Counting the starting person as level 0:
+WITH RECURSIVE employee_hierarchy AS (
+    -- Anchor: start with one employee
+    SELECT employee_id, first_name, last_name, manager_id,
+           0 AS hierarchy_level
+    FROM employees
+    WHERE employee_id = 100
+
+    UNION ALL
+
+    -- Recursive part: find the direct reports of the previous pass
+    SELECT e.employee_id, e.first_name, e.last_name, e.manager_id,
+           eh.hierarchy_level + 1
+    FROM employees e
+    INNER JOIN employee_hierarchy eh
+        ON e.manager_id = eh.employee_id
+)
+SELECT *
+FROM employee_hierarchy
+ORDER BY hierarchy_level, employee_id;
+-- Swap 100 for 108 and you get just Nancy Greenberg's branch of the
+-- tree — the anchor decides where the walk starts.
+
 
 -- =============================================================
 -- TAKEAWAYS
@@ -165,4 +232,8 @@ SHOW VARIABLES LIKE 'cte_max_recursion_depth';
 --   • The same shape works upward (chain of command) or downward (org
 --     chart) — only the anchor and the join direction change
 --   • cte_max_recursion_depth is the safety net against a data cycle
+--   • The recursive member's WHERE (number < 5) is what ends a
+--     table-less recursion
+--   • UNION covers one fixed level; recursion covers any depth —
+--     anchor on one employee to walk just their branch
 -- =============================================================

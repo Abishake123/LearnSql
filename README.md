@@ -42,8 +42,25 @@ We use two databases:
 | `13-performance` | [`19_indexes_and_binlog.sql`](13-performance/19_indexes_and_binlog.sql) | `CREATE INDEX`, InnoDB vs MyISAM, the binary log |
 | `05-joins` | [`20_cross_join_and_self_join_variant.sql`](05-joins/20_cross_join_and_self_join_variant.sql) | `CROSS JOIN`, reading a self-join's `ON` clause correctly |
 | `14-window-functions` | [`21_window_functions_intro.sql`](14-window-functions/21_window_functions_intro.sql) | `OVER()` — aggregates that don't collapse rows |
-| `10-derived-temp-cte` | [`22_recursive_cte_hierarchy.sql`](10-derived-temp-cte/22_recursive_cte_hierarchy.sql) | `WITH RECURSIVE` — walking a manager → reportee chain |
+| `10-derived-temp-cte` | [`22_recursive_cte_hierarchy.sql`](10-derived-temp-cte/22_recursive_cte_hierarchy.sql) | `WITH RECURSIVE` — counting 1→5, walking a manager → reportee chain |
+| `14-window-functions` | [`23_ranking_and_lead_lag.sql`](14-window-functions/23_ranking_and_lead_lag.sql) | `PARTITION BY`, `RANK` vs `DENSE_RANK`, top-N per group, `LEAD`, `COALESCE`, `NTILE` |
+| `15-procedures-functions` | [`24_stored_procedures_and_functions.sql`](15-procedures-functions/24_stored_procedures_and_functions.sql) | `CREATE PROCEDURE`, `IN`/`OUT` params, `@variables`, `CREATE FUNCTION`, `DETERMINISTIC` |
+| `07-ddl` | [`25_composite_keys_and_truncate.sql`](07-ddl/25_composite_keys_and_truncate.sql) | Composite primary keys, `TRUNCATE` vs `DELETE`, `OFFSET` paging |
+| `06-aggregates` | [`26_any_all_subqueries.sql`](06-aggregates/26_any_all_subqueries.sql) | `> ANY` / `> ALL` subqueries |
+| `13-performance` | [`27_explain.sql`](13-performance/27_explain.sql) | `EXPLAIN` — full table scan vs index lookup |
+| `11-transactions` | [`28_acid_and_table_locks.sql`](11-transactions/28_acid_and_table_locks.sql) | ACID properties, atomic transfers, `LOCK TABLES` |
+| `08-functions` | [`29_string_date_math_functions.sql`](08-functions/29_string_date_math_functions.sql) | `SUBSTRING`, `LEFT`/`RIGHT`, `STR_TO_DATE`, year filters, `%` |
+| `15-procedures-functions` | [`30_cursors.sql`](15-procedures-functions/30_cursors.sql) | Cursors — `DECLARE`/`OPEN`/`FETCH`/`CLOSE`, `NOT FOUND` handler |
+| `09-case-expressions` | [`31_pivot_with_case.sql`](09-case-expressions/31_pivot_with_case.sql) | Pivoting rows into columns with `SUM(CASE ...)` |
 | — | [`cheatsheet.md`](cheatsheet.md) | One-page recap of everything |
+
+## Practice tasks
+
+Exercises to do on your own, in the [`tasks/`](tasks) folder:
+
+| File | Covers |
+|---|---|
+| [`01_beginner_tasks.md`](tasks/01_beginner_tasks.md) | 95 questions — `SELECT`, `WHERE`, `AND`/`OR`, `IN`, `BETWEEN`, `LIKE`, `ORDER BY`, `LIMIT`/`OFFSET`, aggregates (lessons 01–09) |
 
 ---
 

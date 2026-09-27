@@ -149,6 +149,13 @@ FROM (SELECT ... ) AS t                                                         
 
 `=` needs exactly one row back. `IN` accepts many. When in doubt, `IN`.
 
+```sql
+WHERE salary > ALL (SELECT salary FROM employees WHERE department_id = 10)   -- beats every value  = > MAX
+WHERE salary > ANY (SELECT salary FROM employees WHERE department_id = 10)   -- beats at least one = > MIN
+```
+
+`= ANY` is `IN`. `ANY`/`ALL` need a **subquery** — `> ANY (1, 2, 3)` is a syntax error.
+
 ## CASE expressions
 
 ```sql
@@ -160,6 +167,18 @@ END AS salary_tag
 ```
 
 First matching `WHEN` wins, top to bottom. No `ELSE` → unmatched rows get `NULL`. Works anywhere an expression is allowed: `SELECT`, `WHERE`, `ORDER BY`, `GROUP BY`.
+
+**Pivot** (rows → columns) — MySQL has no `PIVOT`, so wrap `CASE` in an aggregate, one per output column:
+
+```sql
+SELECT d.department_name,
+       SUM(CASE WHEN j.job_title = 'Programmer'  THEN 1 ELSE 0 END) AS programmer,
+       SUM(CASE WHEN j.job_title = 'Stock Clerk' THEN 1 ELSE 0 END) AS stock_clerk
+FROM employees e
+JOIN departments d ON d.department_id = e.department_id
+JOIN jobs j        ON j.job_id = e.job_id
+GROUP BY d.department_id;
+```
 
 ## Derived tables, temp tables, CTEs
 
@@ -203,6 +222,15 @@ WITH RECURSIVE employee_hierarchy AS (
 SELECT * FROM employee_hierarchy ORDER BY level;
 ```
 
+```sql
+WITH RECURSIVE numbers AS (
+    SELECT 1 AS number                                   -- anchor
+    UNION ALL
+    SELECT number + 1 FROM numbers WHERE number < 5      -- the WHERE is what stops it
+)
+SELECT * FROM numbers;                                   -- 1, 2, 3, 4, 5
+```
+
 `WITH RECURSIVE` is mandatory in MySQL even though the CTE is just named normally elsewhere. Each pass joins against only the *previous* pass's new rows, not the whole result so far — the recursion stops the instant a pass finds zero new rows. `cte_max_recursion_depth` (default 1000) is the safety net if bad data ever forms a cycle. Full visual walkthrough: [`22_recursive_cte_hierarchy.sql`](10-derived-temp-cte/22_recursive_cte_hierarchy.sql).
 
 ---
@@ -235,6 +263,15 @@ COMMIT;                               -- transaction is still open — this fina
 
 `SAVEPOINT` always needs a name — there's no bare form. `ROLLBACK TO SAVEPOINT` doesn't end the transaction; you still need a final `COMMIT` or full `ROLLBACK`.
 
+**ACID** — **A**tomicity (all or nothing), **C**onsistency (valid state → valid state), **I**solation (no peeking at unfinished work), **D**urability (committed = survives a crash). A money transfer is two `UPDATE`s in one transaction for exactly this reason.
+
+```sql
+LOCK TABLES employees WRITE;   -- only this session can touch employees
+UNLOCK TABLES;                 -- always release
+```
+
+**`TRUNCATE TABLE t`** empties a table instantly and resets `AUTO_INCREMENT` — but it's DDL: no `WHERE`, no `ROLLBACK`. `DELETE FROM t` is slower but can be filtered and undone.
+
 ## Changing structure
 
 ```sql
@@ -250,6 +287,14 @@ FOREIGN KEY (department_id) REFERENCES departments(department_id);
 ```
 
 DDL **auto-commits** — `ROLLBACK` cannot undo an `ALTER`.
+
+```sql
+CREATE TABLE enrollments (
+    student_id INT,
+    course_id  INT,
+    PRIMARY KEY (student_id, course_id)   -- composite key: the PAIR must be unique
+);
+```
 
 ## Users, privileges, and views
 
@@ -278,6 +323,11 @@ SHOW BINARY LOGS;
 SHOW BINLOG EVENTS IN 'binlog.000055';
 ```
 
+```sql
+EXPLAIN SELECT * FROM employees WHERE employee_id = 116;   -- type = const → index lookup
+EXPLAIN SELECT * FROM employees WHERE email = '...';       -- type = ALL   → full table scan
+```
+
 An index lets a lookup jump straight to the right B-tree page instead of scanning every row — but every write (`INSERT`/`UPDATE`/`DELETE`) now also maintains it, so add one for columns you actually filter/join/sort on, not everything. InnoDB (transactions, FKs, row locks) is the default engine over MyISAM (none of that). The **binlog** records every data-changing statement in order — it powers replication and point-in-time recovery.
 
 ## Window functions
@@ -289,7 +339,54 @@ SELECT employee_id, department_id, SUM(salary) OVER() AS company_total
 FROM employees;                                                             -- keeps every row
 ```
 
-`GROUP BY` collapses rows into groups. A window function (`OVER()`) computes the same kind of aggregate but keeps every row, attaching the aggregate as an extra column. `OVER()` with empty parens = the whole result set is the window; `OVER (PARTITION BY department_id)` would scope it per group while still keeping every row.
+`GROUP BY` collapses rows into groups. A window function (`OVER()`) computes the same kind of aggregate but keeps every row, attaching the aggregate as an extra column. `OVER()` with empty parens = the whole result set is the window; `OVER (PARTITION BY department_id)` scopes it per group while still keeping every row.
+
+```sql
+SUM(salary)  OVER (PARTITION BY department_id)                     -- per-department total on every row
+RANK()       OVER (ORDER BY salary DESC)                           -- 1, 2, 2, 4  (gap after a tie)
+DENSE_RANK() OVER (ORDER BY salary DESC)                           -- 1, 2, 2, 3  (no gap)
+RANK()       OVER (PARTITION BY department_id ORDER BY salary DESC) -- restarts at 1 per department
+LEAD(salary) OVER (ORDER BY salary DESC)                           -- next row's value (LAG = previous)
+NTILE(4)     OVER (ORDER BY salary DESC)                           -- 4 equal-size buckets
+```
+
+You **can't** use a window column in `WHERE` — compute it in a derived table and filter outside:
+
+```sql
+SELECT * FROM (
+    SELECT first_name, department_id,
+           RANK() OVER (PARTITION BY department_id ORDER BY salary DESC) AS dept_rank
+    FROM employees
+) dt
+WHERE dept_rank = 1;    -- top earner(s) per department
+```
+
+## Stored procedures, functions, cursors
+
+```sql
+DELIMITER $$
+CREATE PROCEDURE count_empl(IN p_dept INT, OUT p_count INT)
+BEGIN
+    SELECT COUNT(*) INTO p_count FROM employees WHERE department_id = p_dept;
+END $$
+DELIMITER ;
+
+CALL count_empl(10, @x);   SELECT @x;      -- OUT value lands in a session variable
+
+DELIMITER $$
+CREATE FUNCTION add_numbers(a INT, b INT) RETURNS INT DETERMINISTIC
+BEGIN
+    RETURN a + b;
+END $$
+DELIMITER ;
+
+SELECT add_numbers(2, 4);                  -- functions go INSIDE queries
+```
+
+- `@var` lives for the session; `DECLARE var` lives inside one `BEGIN ... END`.
+- Every procedure parameter is required — no defaults.
+- Error 1418 on `CREATE FUNCTION` → add `DETERMINISTIC` (or `READS SQL DATA`), rather than `SET GLOBAL log_bin_trust_function_creators = 1`.
+- **Cursor** = row-by-row loop inside a procedure: `DECLARE` → `OPEN` → `FETCH` in a `LOOP` → `CLOSE`, with `DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1` to end the loop. Slow — use set-based SQL whenever it can do the job.
 
 ---
 
@@ -307,6 +404,12 @@ FROM employees;                                                             -- k
 | `CHAR_LENGTH(s)` | String length in **characters** — prefer this once data isn't guaranteed ASCII |
 | `FIELD(val, a, b, c)` | 1-based position of `val` in the list; `0` if not found — great for a custom `ORDER BY` |
 | `FORMAT(num, decimals)` | Thousands separators + fixed decimals — returns **text**, format last |
+| `SUBSTRING(s, start, len)` | Part of a string — positions start at **1** |
+| `LEFT(s, n)`, `RIGHT(s, n)` | First / last `n` characters |
+| `STR_TO_DATE('25-12-2026', '%d-%m-%Y')` | Text → date; the format describes the **input** |
+| `COALESCE(a, b, c)` | First non-NULL argument (standard SQL) |
+| `IFNULL(a, b)` | `b` if `a` is NULL (MySQL-only, two args) |
+| `a % b` | Remainder — `x % 2 = 0` means even |
 
 ---
 
@@ -324,6 +427,13 @@ FROM employees;                                                             -- k
 | `ROLLBACK TO SAVEPOINT` alone | Transaction stays open | Still needs a final `COMMIT` (or full `ROLLBACK`) |
 | Trusting a self-join alias name | `AS employee` / `AS manager` swapped vs. the real roles | Read the `ON` condition, not the alias, to see who's who |
 | `ONLY_FULL_GROUP_BY` disabled earlier in a session | Stays off for every later query in that session | Watch for ungrouped, non-aggregated columns creeping back in |
+| `WHERE ranks = 1` on a window-function alias | "Unknown column 'ranks'" | Wrap in a derived table, filter outside |
+| `LEAD(...)` aliased `lag_salary` | Works, but the name lies | LEAD = next row, LAG = previous |
+| `salary > ANY (12000, 9000, 6800)` | Syntax error | `ANY`/`ALL` need a subquery |
+| `hire_date > '2018-01-01' AND hire_date < '2018-12-31'` | Misses Jan 1 and Dec 31 | `>= '2018-01-01' AND < '2019-01-01'` |
+| `LIMIT 5 OFFSET 15` with no `ORDER BY` | "Page 4" is whatever order MySQL feels like | Always `ORDER BY` before paging |
+| `CREATE FUNCTION` without `DETERMINISTIC` | Error 1418 (binary logging is on) | Declare `DETERMINISTIC` |
+| `GROUP BY deparmtnet_id, region_id` | Typo, and `region_id` isn't on `employees` | Join through to `regions` (file 08) |
 
 ---
 

@@ -49,8 +49,7 @@ FROM employees e;
 -- The empty parentheses in OVER() mean "the window is the entire
 -- result set" — no partitioning. `OVER (PARTITION BY department_id)`
 -- would instead compute the sum PER department while STILL keeping
--- every individual row — not run this session, but worth knowing the
--- shape exists for when partitioned windows come up.
+-- every individual row — file 23 runs it.
 
 
 -- -------------------------------------------------------------
@@ -67,13 +66,11 @@ FROM employees e;
 
 
 -- -------------------------------------------------------------
--- 4. What's coming, not covered yet
+-- 4. What's next
 -- -------------------------------------------------------------
--- This session only ran SUM() OVER(). The class agenda also named
--- RANK, ROW_NUMBER, LEAD, LAG, and DENSE_RANK as window functions —
--- none of those were demonstrated with a query yet, so they aren't
--- documented here. They'll get their own lesson once they're actually
--- covered (same treatment given to recursive CTEs in file 16).
+-- The class agenda also named RANK, ROW_NUMBER, LEAD, LAG, and
+-- DENSE_RANK. Those — plus PARTITION BY in action — are covered in
+-- file 23.
 
 
 -- =============================================================
@@ -81,8 +78,7 @@ FROM employees e;
 --   • GROUP BY collapses rows into one per group; a window function
 --     (OVER()) keeps every row and attaches the aggregate alongside it
 --   • OVER() with empty parentheses = window is the whole result set
---   • PARTITION BY (inside OVER) would scope the aggregate per group
---     while still keeping every row — named here, not yet demonstrated
---   • RANK / ROW_NUMBER / LEAD / LAG / DENSE_RANK — named as upcoming
---     topics, no queries for them yet
+--   • PARTITION BY (inside OVER) scopes the aggregate per group while
+--     still keeping every row — see file 23
+--   • RANK / DENSE_RANK / LEAD / NTILE — file 23
 -- =============================================================
