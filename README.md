@@ -61,6 +61,7 @@ Exercises to do on your own, in the [`tasks/`](tasks) folder:
 | File | Covers |
 |---|---|
 | [`01_beginner_tasks.md`](tasks/01_beginner_tasks.md) | 95 questions — `SELECT`, `WHERE`, `AND`/`OR`, `IN`, `BETWEEN`, `LIKE`, `ORDER BY`, `LIMIT`/`OFFSET`, aggregates (lessons 01–09) |
+| [`02_normalization_tasks.md`](tasks/02_normalization_tasks.md) | Split a repetitive table into 3 — library borrowing & hospital appointments: primary/foreign keys, `CREATE TABLE`, `INSERT`, 3-table `JOIN` |
 
 ---
 
