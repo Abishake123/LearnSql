@@ -16,6 +16,8 @@ You must **write** them in this order, and the database **executes** them in a d
 
 `FROM` runs first — that's why you can't use a `SELECT` alias inside `WHERE`, but you *can* use it in `ORDER BY`.
 
+Full breakdown — every clause, what each one can see, and `INSERT`/`UPDATE`/`DELETE` order: [`clause-order.md`](clause-order.md).
+
 ---
 
 ## Reading data

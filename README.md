@@ -52,6 +52,7 @@ We use two databases:
 | `08-functions` | [`29_string_date_math_functions.sql`](08-functions/29_string_date_math_functions.sql) | `SUBSTRING`, `LEFT`/`RIGHT`, `STR_TO_DATE`, year filters, `%` |
 | `15-procedures-functions` | [`30_cursors.sql`](15-procedures-functions/30_cursors.sql) | Cursors — `DECLARE`/`OPEN`/`FETCH`/`CLOSE`, `NOT FOUND` handler |
 | `09-case-expressions` | [`31_pivot_with_case.sql`](09-case-expressions/31_pivot_with_case.sql) | Pivoting rows into columns with `SUM(CASE ...)` |
+| — | [`clause-order.md`](clause-order.md) | Written vs execution order of every clause — and the errors it explains |
 | — | [`cheatsheet.md`](cheatsheet.md) | One-page recap of everything |
 
 ## Practice tasks
